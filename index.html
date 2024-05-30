@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Container List Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            text-align: center;
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #333;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        label {
+            display: inline-block;
+            margin-bottom: 10px;
+            padding: 10px 20px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        .button {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .button:hover, label:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+        .checkbox {
+            margin: 10px 0;
+        }
+        #downloadLink {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Container List Generator</h1>
+        <input type="file" id="fileInput" accept=".xml">
+        <label for="fileInput">Choose XML File</label>
+        <div class="checkbox">
+            <input type="checkbox" id="privateCheckbox">
+            <label for="privateCheckbox">Private</label>
+        </div>
+        <button class="button" onclick="generateCSV()">Generate CSV</button>
+        <a id="downloadLink" style="display:none" class="button">Download CSV</a>
+    </div>
+
+    <script>
+        function generateCSV() {
+            const fileInput = document.getElementById('fileInput');
+            const privateCheckbox = document.getElementById('privateCheckbox');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select an XML file.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const xmlString = event.target.result;
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlString, "application/xml");
+                console.log("Parsed XML Document:", xmlDoc); // Debugging line
+
+                let csvContent = 'NR,ID,SEALS,UNIT,WEIGHT,CONSIGNEE,FCL/LCL,POL,REMARKS\n';
+                let nr = 1;
+
+                const bolSegments = xmlDoc.getElementsByTagName('Bol_segment');
+                console.log("Number of bol_segment elements found:", bolSegments.length); // Debugging line
+
+                for (let i = 0; i < bolSegments.length; i++) {
+                    const bolSegment = bolSegments[i];
+                    console.log(`bolSegment [${i}]:`, bolSegment); // Debugging line
+                    
+                    const consigneeElement = bolSegment.getElementsByTagName('Consignee_name')[0];
+                    let consigneeName = consigneeElement ? consigneeElement.textContent : '';
+                    if (privateCheckbox.checked) {
+                        consigneeName = 'Suriname Freight Systems';
+                    }
+                    const polElement = bolSegment.getElementsByTagName('Place_of_loading_code')[0];
+                    const placeOfLoadingCode = polElement ? polElement.textContent : '';
+                    const shippingMarksElement = bolSegment.getElementsByTagName('Shipping_marks')[0];
+                    const shippingMarks = shippingMarksElement ? shippingMarksElement.textContent : '';
+
+                    const ctnSegments = bolSegment.getElementsByTagName('ctn_segment');
+                    console.log(`Number of ctn_segment elements in bolSegment [${i}]:`, ctnSegments.length); // Debugging line
+
+                    for (let j = 0; j < ctnSegments.length; j++) {
+                        const ctnSegment = ctnSegments[j];
+                        console.log(`ctnSegment [${j}]:`, ctnSegment); // Debugging line
+
+                        const ctnReferenceElement = ctnSegment.getElementsByTagName('Ctn_reference')[0];
+                        const ctnReference = ctnReferenceElement ? ctnReferenceElement.textContent : '';
+                        const marks1Element = ctnSegment.getElementsByTagName('Marks1')[0];
+                        const marks1 = marks1Element ? marks1Element.textContent : '';
+                        const typeOfContainerElement = ctnSegment.getElementsByTagName('Type_of_container')[0];
+                        const typeOfContainer = typeOfContainerElement ? typeOfContainerElement.textContent : '';
+                        const ctnGrossMassElement = ctnSegment.getElementsByTagName('Ctn_gross_mass')[0];
+                        const ctnGrossMass = ctnGrossMassElement ? ctnGrossMassElement.textContent : '';
+                        const emptyFullElement = ctnSegment.getElementsByTagName('Empty_Full')[0];
+                        const emptyFull = emptyFullElement ? emptyFullElement.textContent : '';
+
+                        let remarks = shippingMarks === 'NO MARKS' ? '' : shippingMarks;
+
+                        csvContent += `${nr},${ctnReference},${marks1},${typeOfContainer},${ctnGrossMass},${consigneeName},${emptyFull},${placeOfLoadingCode},${remarks}\n`;
+                        nr++;
+                    }
+                }
+
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const downloadLink = document.getElementById('downloadLink');
+                downloadLink.href = url;
+                downloadLink.download = 'output.csv';
+                downloadLink.style.display = 'block';
+                downloadLink.textContent = 'Download CSV';
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
